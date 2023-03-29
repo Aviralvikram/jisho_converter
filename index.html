@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        p {
+            margin: 0;
+        }
+
+        body {
+            margin: 0;
+            background-color: purple;
+            color: white;
+            font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+        }
+
+        .kanji {
+            list-style: none;
+            font-size: 2rem;
+        }
+
+        .kanji li {
+            list-style: none;
+            font-size: 1rem;
+        }
+
+        .kanji li>p:first-child {
+            font-size: .7em;
+        }
+
+        .kanji li>p:last-child {
+            margin-top: 1rem;
+        }
+
+        .container {
+            width: min(700px, 90%);
+            margin-inline: auto;
+            margin-block: 100px;
+        }
+        </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <input type="file" class="upload">
+        <button class="read">Read file</button>
+        <button class="export">Export data to local txt file</button>
+        <button class="ankijson">Turn to Anki json</button>
+    </div>
+    <script type="module">
+        import { createAnkiJSON } from './anki_json.js';
+
+        const upload = document.querySelector('.upload');
+        const read = document.querySelector('.read');
+
+        let fileData = {}
+        read.addEventListener('click',getData)
+        upload.addEventListener('change', () => {
+            let fr = new FileReader();
+
+            fr.readAsText(upload.files[0]);
+
+            fr.onload = function() {
+                // jsonToAnki.innerHTML = fr.result;
+                fileData = fr.result;
+            }
+        })
+        const jsonToAnki = document.querySelector('.ankijson');
+        const exportBtn = document.querySelector('.export');
+        const id = document.querySelector('.lesson')?.value || 8;
+        let ANKI = 'lol'
+        
+        let arr;
+        // jsonToAnki.addEventListener('click', fla(arr)) i am calling the function here cuz m stupid
+        jsonToAnki.addEventListener('click', filterKanjiSamples)
+        exportBtn.addEventListener('click', export2txt)
+        let lesson = 0;
+
+        async function getData() {
+            const data = await fetch(`./jisho3.json`);
+            const pars = await data.json();
+
+            arr = fileData
+            // arr = pars;
+            const list = document.createElement('li')
+            list.classList.add('kanji')
+            list.innerHTML = pars[`Lesson_${id}`].map(ele => {
+                let ex = ['empty']
+                if (ele.examples?.totalExamples) {
+                    ex = ele.examples.totalExamples.map(eg =>
+                    `<input data-k="${eg.kanji}" type="checkbox">
+                    <p>${eg.furigana.join('')}</p><p>${eg.kanji}</p>
+                    <p>${eg.meanings.join('')}</p>`)
+                }
+                return `${ele.kanji}<ul>${ex?.map(e => `<li>${e}</li>`).join('')}</ul>`
+            }).join('');
+            document.querySelector('.container').appendChild(list);
+        }
+        // getData();
+        function logChecked() {
+            [...document.querySelectorAll('input:checked')].forEach(e => console.log(e));
+        }
+
+        function filterKanjiSamples() {
+            arr?.[`Lesson_${id}`].forEach(e => {
+                // i forgot map make a new array of what is returned, unlike filter
+                // let result = e.examples.totalExamples.map((ie,i) => document.querySelector(`input[data-k="${ie.kanji}"]:checked`))
+                // which returns the original val if return truthy or oppsite
+                if (!e.examples?.totalExamples) return delete e.examples
+                e.examples.totalExamples = e.examples.totalExamples.filter((ie, i) => !document.querySelector(`input[data-k="${ie.kanji}"]:checked`))
+                e.examples.total = e.examples?.totalExamples.length || 0
+            })
+            const [anki, json] = createAnkiJSON(id, arr)
+            ANKI = json
+            console.log(ANKI); 
+        }
+
+        function export2txt() {
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(new Blob([JSON.stringify(ANKI, null, 2)], {
+                type: "application/json"
+            }));
+            a.setAttribute("download", "data.txt");
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+    </script>
+</body>
+
+</html>
