@@ -18,6 +18,32 @@
             font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
         }
 
+        .flex {
+            display: flex;
+            flex-direction: row-reverse;
+            justify-content: space-between;
+        }
+
+        .flex input {
+            appearance: none;
+            align-self: center;
+            width: 2rem;
+            aspect-ratio: 1;
+            color: blueviolet;
+            outline: 2px solid currentColor;
+            outline-offset: .35rem;
+        }
+
+        .flex input:focus-visible,
+        .flex input:hover {
+            scale: 1.05;
+            color: lime;
+            transition: scale 300ms ease;
+        }
+        .flex input:checked {
+            background-color: currentColor;
+        }
+
         .kanji {
             list-style: none;
             font-size: 2rem;
@@ -41,38 +67,63 @@
             margin-inline: auto;
             margin-block: 100px;
         }
+
+        button {
+            font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+            background-color: black;
+            color: white;
+            border-color: transparent;
+            padding: .8em .8em;
+            border-radius: .5rem;
+        }
+
+        input {
+            padding: .5em;
+            border-radius: .5rem;
+            border-color: transparent;
+        }
+
+        .kanji-container {
+            margin-top: 5rem;
+            outline:1px solid gray;
+            outline-offset: 2rem;
+        }
+        .kanji-container > li {
+            display: grid;
+            grid-template-columns: repeat( auto-fit, minmax(400px,1fr));
+        }
     </style>
 </head>
 
 <body>
-
-    <div class="container">
-        <input class="lesson" type="text">
+    <main class="container">
+        <input class="lesson" type="text" placeholder="lesson number">
+        <input class="file" type="text" placeholder="json filename" value="jisho3.json">
         <button class="read">Read file</button>
         <button class="ankijson">Filter and Download json</button>
-    </div>
+        <div class="kanji-container">
+        </div>
+    </main>
     <script type="module">
         // import { createAnkiJSON } from './anki_json.js';
         import { createAnkiJSON } from './anki_json2.js';
 
         const read = document.querySelector('.read');
-        const lessonNo = document.querySelector('.lesson');
         const jsonToAnki = document.querySelector('.ankijson');
-
+        
         let FILE_DATA = {}
-        let lessonNum
 
-        const id = document.querySelector('.lesson').value;
-        read.addEventListener('click', getData)
+        read.addEventListener('click', readFile)
         jsonToAnki.addEventListener('click', filterKanjiSamples)
-
+       
         async function readFile() {
-            const data = fetch('./jisho2.json')
-            const arr = await data.json()
-            FILE_DATA = arr
+            const fileName = document.querySelector('.file').value;
+            const resp = await fetch(fileName);
+            const data = await resp.json();
+            FILE_DATA = data
+            getData()
         }
-        readFile().then(fa => console.log(fa))
-
+        
         function getData() {
             const id = document.querySelector('.lesson').value;
             const list = document.createElement('li')
@@ -87,11 +138,13 @@
                 }
                 return `${ele.kanji}<ul>${ex?.map(e => `<li>${e}</li>`).join('')}</ul>`
             }).join('');
-            document.querySelector('.container').appendChild(list);
+            // document.querySelector('.container').;
+            document.querySelector('.kanji-container').appendChild(list);
         }
 
         let ANKI = {}
         async function filterKanjiSamples() {
+            await readFile()
             const id = document.querySelector('.lesson').value
             FILE_DATA?.[`Lesson_${id}`].forEach(e => {
                 // i forgot map make a new array of what is returned, unlike filter
