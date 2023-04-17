@@ -91,8 +91,8 @@
         }
 
         .kanji-container>li {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            display: flex;
+            flex-direction: column;
         }
 
         .saveLocal {
@@ -126,39 +126,35 @@
         let FILE_DATA = {}
 
         read.addEventListener('click', readFile)
-        jsonToAnki.addEventListener('click', filterKanjiSamples)
+        jsonToAnki.addEventListener('click', downloadJsonKanji)
         saveLocal.addEventListener('click', saveToLocal)
         loadSave.addEventListener('click', loadSaved)
 
-        function loadSaved() {
-            const data = JSON.parse(localStorage.getItem('saveJisho'));
-            console.log(data);
+        function renderData(data) {
             const id = document.querySelector('.lesson').value;
             const list = document.createElement('li')
             list.classList.add('kanji')
-            list.innerHTML = data?.[`Lesson_${id}`].map(ele => {
+            list.innerHTML = data?.[`Lesson_${id}`].map((ele, i) => {
                 let ex = ['empty']
                 if (ele.examples?.totalExamples) {
                     ex = ele.examples.totalExamples.map(eg =>
-                        `<div class="flex"><input data-k="${eg.kanji}" type="checkbox">
+                        `<div class="flex ${ele.kanji}"><input data-k="${eg.kanji}" type="checkbox">
                     <div><p>${Array.isArray(eg.furigana) ? eg.furigana.join('') : eg.furigana}</p><p>${eg.kanji}</p>
                     <p>${eg.meanings.join('')}</p></div></div>`)
                 }
-                return `${ele.kanji}<ul>${ex?.map(e => `<li>${e}</li>`).join('')}</ul>`
+                return `<p>${i}-${ele.kanji}<p><ul class="dropdown">${ex?.map(e => `<li>${e}</li>`).join('')}</ul>`
             }).join('');
             document.querySelector('.kanji-container').innerHTML = '';
             document.querySelector('.kanji-container').appendChild(list);
+        }
+
+        function loadSaved() {
+            const data = JSON.parse(localStorage.getItem('saveJisho'));
+            renderData(data)
             FILE_DATA = data
         }
         function saveToLocal() {
-            const id = document.querySelector('.lesson').value
-            console.log(id);
-            console.log(FILE_DATA?.[`Lesson_${id}`], FILE_DATA);
-            FILE_DATA?.[`Lesson_${id}`].forEach(e => {
-                if (!e.examples?.totalExamples) return e.examples
-                e.examples.totalExamples = e.examples.totalExamples.filter((ie, i) => !document.querySelector(`input[data-k="${ie.kanji}"]:checked`))
-                e.examples.total = e.examples?.totalExamples.length || 0
-            })
+            filter()
             localStorage.setItem('saveJisho', JSON.stringify(FILE_DATA))
         }
 
@@ -167,38 +163,23 @@
             const resp = await fetch(fileName);
             const data = await resp.json();
             FILE_DATA = data
-            getData()
+            renderData(FILE_DATA)
         }
 
-        function getData() {
-            const id = document.querySelector('.lesson').value;
-            const list = document.createElement('li')
-            list.classList.add('kanji')
-            list.innerHTML = FILE_DATA?.[`Lesson_${id}`].map(ele => {
-                let ex = ['empty']
-                if (ele.examples?.totalExamples) {
-                    ex = ele.examples.totalExamples.map(eg =>
-                        `<div class="flex"><input data-k="${eg.kanji}" type="checkbox">
-                    <div><p>${Array.isArray(eg.furigana) ? eg.furigana.join('') : eg.furigana}</p><p>${eg.kanji}</p>
-                    <p>${eg.meanings.join('')}</p></div></div>`)
-                }
-                return `${ele.kanji}<ul>${ex?.map(e => `<li>${e}</li>`).join('')}</ul>`
-            }).join('');
-            document.querySelector('.kanji-container').innerHTML = '';
-            document.querySelector('.kanji-container').appendChild(list);
-        }
-
-        let ANKI = {}
-        function filterKanjiSamples() {
+        function filter() {
             const id = document.querySelector('.lesson').value
             FILE_DATA?.[`Lesson_${id}`].forEach(e => {
                 // i forgot map make a new array of what is returned, unlike filter
                 // let result = e.examples.totalExamples.map((ie,i) => document.querySelector(`input[data-k="${ie.kanji}"]:checked`))
                 // which returns the original val if return truthy or oppsite
                 if (!e.examples?.totalExamples) return e.examples
-                e.examples.totalExamples = e.examples.totalExamples.filter((ie, i) => !document.querySelector(`input[data-k="${ie.kanji}"]:checked`))
+                e.examples.totalExamples = e.examples.totalExamples.filter((ie, i) => !document.querySelector(`.${e.kanji} input[data-k="${ie.kanji}"]:checked`))
                 e.examples.total = e.examples?.totalExamples.length || 0
             })
+            return FILE_DATA;
+        }
+        function downloadJsonKanji() {
+            filter()
             const anki = createAnkiJSON(id, FILE_DATA)
             export2txt(FILE_DATA?.[`Lesson_${id}`], `lesson-${id}`)
             export2txt(anki, `Anki-l${id}`)
